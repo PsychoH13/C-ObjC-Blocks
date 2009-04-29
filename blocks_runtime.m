@@ -1,4 +1,3 @@
-//#import <Foundation/Foundation.h>
 #include "blocks_runtime.h"
 
 struct StackBlockClass;
@@ -69,7 +68,9 @@ void _Block_object_assign(void *destAddr, void *object, const int flags)
         {
             struct psy_block_byref_obj *src = object;
             struct psy_block_byref_obj **dst = destAddr;
-            
+            /* I followed Apple's specs saying byref's "flags" field should represent the refcount
+             * but it still contains real flag, so this is a little hack...
+             */
             if((src->flags & ~BLOCK_HAS_COPY_DISPOSE) == 0)
             {
                 *dst = malloc(src->size);
@@ -136,6 +137,9 @@ void _Block_object_dispose(void *object, const int flags)
         }
     }
 }
+
+// The following code is generated with clang-cc -rewrite-objc and provides Blocks with an isa
+// pointer compatible with Apple's ObjC runtime.
 
 #ifndef _REWRITER_typedef_StackBlockClass
 #define _REWRITER_typedef_StackBlockClass
@@ -349,6 +353,8 @@ static struct psy_objc_module PSY_OBJC_MODULES __attribute__ ((used, section ("_
 7, sizeof(struct psy_objc_module), "", &PSY_OBJC_SYMBOLS
 };
 
+// Copy a block to the heap if it's still on the stack or increments its retain count.
+// The block is considered on the stack if self->descriptor->reserved == 0.
 void *__Block_copy(void *src)
 {
     struct StackBlockClass *self = src;
@@ -376,6 +382,7 @@ void *__Block_copy(void *src)
     return ret;
 }
 
+// Release a block and frees the memory when the retain count hits zero.
 void __Block_release(void *src)
 {
     struct StackBlockClass *self = src;
