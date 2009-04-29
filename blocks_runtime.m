@@ -358,26 +358,19 @@ static struct psy_objc_module PSY_OBJC_MODULES __attribute__ ((used, section ("_
 void *__Block_copy(void *src)
 {
     struct StackBlockClass *self = src;
-    struct StackBlockClass *ret;
-    if(self->isa == &_NSConcreteGlobalBlock)
-    {
-        ret = self;
-    }
-    else if(self->flags & BLOCK_HAS_DESCRIPTOR)
+    struct StackBlockClass *ret = self;
+    
+    // If the block is Global, there's no need to copy it on the heap.
+    if(self->isa == &_NSConcreteStackBlock && self->flags & BLOCK_HAS_DESCRIPTOR)
     {
         if(self->descriptor->reserved == 0)
         {
             ret = malloc(self->descriptor->size);
             memcpy(ret, self, self->descriptor->size);
-            ret->reserved++;
             if(self->flags & BLOCK_HAS_COPY_DISPOSE)
                 self->descriptor->copy_helper(ret, self);
         }
-        else
-        {
-            if(self->reserved > 0) self->descriptor->reserved++;
-            ret = self;
-        }
+        ret->descriptor->reserved++;
     }
     return ret;
 }
@@ -387,10 +380,12 @@ void __Block_release(void *src)
 {
     struct StackBlockClass *self = src;
     
-    if(self->isa == &_NSConcreteStackBlock)
+    if(self->isa == &_NSConcreteStackBlock && // A Global block doesn't need to be released
+       self->flags & BLOCK_HAS_DESCRIPTOR  && // Should always be true...
+       self->descriptor->reserved > 0)        // If false, then it's not allocated on the heap, we won't release auto memory !
     {
-        self->reserved--;
-        if(self->reserved == 0)
+        self->descriptor->reserved--;
+        if(self->descriptor->reserved == 0)
         {
             if(self->flags & BLOCK_HAS_COPY_DISPOSE)
                 self->descriptor->dispose_helper(self);
