@@ -9,8 +9,8 @@ void testBlock(BLK *ret1, BLK *ret2)
     BLK b1 = ^{ i++; };
     BLK b2 = ^{ printf("print: %d\n", i); };
     
-    *ret1 = __Block_copy(b1);
-    *ret2 = __Block_copy(b2);
+    *ret1 = (BLK)__Block_copy(b1);
+    *ret2 = (BLK)__Block_copy(b2);
 }
 
 void tryBlock(BLK b1, BLK b2)
@@ -41,12 +41,16 @@ void tryBlock(BLK b1, BLK b2)
 
 int main (int argc, const char * argv[]) {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    
+    // Pure C compatible part
     BLK b1, b2;
     testBlock(&b1, &b2),
     
     tryBlock(b1, b2);
     
+    __Block_release(b1);
+    __Block_release(b2);
+    
+    // ObjC part
     Test *obj = [[Test new] autorelease];
     
     BLK blk = [obj selfBlock];

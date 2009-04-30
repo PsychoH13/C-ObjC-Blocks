@@ -1,7 +1,31 @@
 #include "blocks_runtime.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
 
 struct StackBlockClass;
 struct GlobalBlockClass;
+
+#if !defined(NSINTEGER_DEFINED) || ! NSINTEGER_DEFINED
+typedef unsigned int NSUInteger;
+#endif
+
+#ifndef _OBJC_OBJC_H_
+typedef struct objc_selector *SEL;
+typedef struct objc_object {
+    void *isa;
+} *id;
+#endif
+
+#ifdef __OBJC__
+/* Makes the compiler happy even without Foundation */
+@interface Dummy
+- (id)retain;
+- (void)release;
+@end
+#endif
+
 
 void *__Block_copy(void *);
 void __Block_release(void *);
@@ -57,7 +81,6 @@ struct psy_block_byref_obj {
  */
 void _Block_object_assign(void *destAddr, void *object, const int flags)
 {
-    printf("%s\n", __func__);
     // FIXME: Needs to be implemented
     if(flags & BLOCK_FIELD_IS_WEAK)
     {
@@ -68,6 +91,7 @@ void _Block_object_assign(void *destAddr, void *object, const int flags)
         {
             struct psy_block_byref_obj *src = object;
             struct psy_block_byref_obj **dst = destAddr;
+            
             /* I followed Apple's specs saying byref's "flags" field should represent the refcount
              * but it still contains real flag, so this is a little hack...
              */
@@ -90,12 +114,14 @@ void _Block_object_assign(void *destAddr, void *object, const int flags)
             
             *dst = __Block_copy(src);
         }
+#ifdef __OBJC__
         else if((flags & BLOCK_FIELD_IS_BLOCK) == BLOCK_FIELD_IS_OBJECT)
         {
             id src = object;
             id *dst = destAddr;
             *dst = [src retain];
         }
+#endif
     }
 }
 
@@ -105,7 +131,6 @@ void _Block_object_assign(void *destAddr, void *object, const int flags)
  */
 void _Block_object_dispose(void *object, const int flags)
 {
-    printf("%s\n", __func__);
     // FIXME: Needs to be implemented
     if(flags & BLOCK_FIELD_IS_WEAK)
     {
@@ -130,11 +155,13 @@ void _Block_object_dispose(void *object, const int flags)
             struct psy_block_literal *src = object;
             __Block_release(src);
         }
+#ifdef __OBJC__
         else if((flags & ~BLOCK_BYREF_CALLER) == BLOCK_FIELD_IS_OBJECT)
         {
             id src = object;
             [src release];
         }
+#endif
     }
 }
 
@@ -188,12 +215,12 @@ static NSUInteger _I_StackBlockClass_retainCount(struct StackBlockClass * self, 
 {
     return self->reserved;
 }
-
+/*
 static NSString * _I_StackBlockClass_description(struct StackBlockClass * self, SEL _cmd)
 {
     return [NSString stringWithFormat:@"Stack Block object=%p address=%p", self, self->invoke];
 }
-
+ */
 // @end
 
 #if 0 // GlobalBlockClass: Not much to do in here...
@@ -206,7 +233,7 @@ typedef struct objc_object GlobalBlockClass;
 #endif
 
 struct GlobalBlockClass {
-    Class isa; // initialized to &_NSConcreteStackBlock or &_NSConcreteGlobalBlock
+    void *isa; // initialized to &_NSConcreteStackBlock or &_NSConcreteGlobalBlock
     int flags;
     int reserved; 
     void (*invoke)(void *, ...);
@@ -243,12 +270,12 @@ static NSUInteger _I_GlobalBlockClass_retainCount(struct GlobalBlockClass * self
 {
     return UINT_MAX;
 }
-
+/*
 static NSString * _I_GlobalBlockClass_description(struct GlobalBlockClass * self, SEL _cmd)
 {
     return [NSString stringWithFormat:@"Global Block object=%p address=%p", self, self->invoke];
 }
-
+ */
 // @end
 #if 0
 }
@@ -265,7 +292,7 @@ struct psy_objc_method {
 static struct {
 	struct _objc_method_list *next_method;
 	int method_count;
-	struct psy_objc_method method_list[6];
+	struct psy_objc_method method_list[5];
 } _OBJC_INSTANCE_METHODS_StackBlockClass __attribute__ ((used, section ("__OBJC, __inst_meth")))= {
 0, 6
 ,{{(SEL)"copy", "@8@0:4", (void *)_I_StackBlockClass_copy}
@@ -273,7 +300,7 @@ static struct {
 ,{(SEL)"release", "Vv8@0:4", (void *)_I_StackBlockClass_release}
 ,{(SEL)"dealloc", "v8@0:4", (void *)_I_StackBlockClass_dealloc}
 ,{(SEL)"retainCount", "I8@0:4", (void *)_I_StackBlockClass_retainCount}
-,{(SEL)"description", "@8@0:4", (void *)_I_StackBlockClass_description}
+//,{(SEL)"description", "@8@0:4", (void *)_I_StackBlockClass_description}
 }
 };
 
@@ -305,7 +332,7 @@ struct psy_objc_class _NSConcreteStackBlock __attribute__ ((used, section ("__OB
 static struct {
 	struct _objc_method_list *next_method;
 	int method_count;
-	struct psy_objc_method method_list[6];
+	struct psy_objc_method method_list[5];
 } _OBJC_INSTANCE_METHODS_GlobalBlockClass __attribute__ ((used, section ("__OBJC, __inst_meth")))= {
 0, 6
 ,{{(SEL)"copy", "@8@0:4", (void *)_I_GlobalBlockClass_copy}
@@ -313,7 +340,7 @@ static struct {
 ,{(SEL)"release", "Vv8@0:4", (void *)_I_GlobalBlockClass_release}
 ,{(SEL)"dealloc", "v8@0:4", (void *)_I_GlobalBlockClass_dealloc}
 ,{(SEL)"retainCount", "I8@0:4", (void *)_I_GlobalBlockClass_retainCount}
-,{(SEL)"description", "@8@0:4", (void *)_I_GlobalBlockClass_description}
+//,{(SEL)"description", "@8@0:4", (void *)_I_GlobalBlockClass_description}
 }
 };
 
