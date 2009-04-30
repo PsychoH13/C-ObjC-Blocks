@@ -18,6 +18,6 @@ Xcode will then use your symbolic link (connected to the Clang executable) to co
 
 5. Now to compile blocks you need to tell Clang to do so using -fblocks option, so go in Your project infos, in Build tab, search Other C Flags and add "-fblocks" to the list.
 
-And VOILË, you can compile blocks and use my runtime for tests.
+And VOILÃ€, you can compile blocks and use my runtime for tests.
 
 NB: The project settings are already correctly set, so you only need to create the symbolic link.
