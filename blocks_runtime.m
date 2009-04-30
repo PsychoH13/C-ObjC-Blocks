@@ -196,9 +196,14 @@ static id _I_StackBlockClass_retain(struct StackBlockClass * self, SEL _cmd)
     return __Block_copy(self);
 }
 
-static id _I_StackBlockClass_copy(struct StackBlockClass * self, SEL _cmd)
+static id _I_StackBlockClass_copyWithZone_(struct StackBlockClass * self, SEL _cmd, NSZone *aZone)
 {
     return _I_StackBlockClass_retain(self, (SEL)"retain");
+}
+
+static id _I_StackBlockClass_copy(struct StackBlockClass * self, SEL _cmd)
+{
+    return _I_StackBlockClass_copyWithZone_(self, (SEL)"copyWithZone:", NULL);
 }
 
 static void _I_StackBlockClass_dealloc(struct StackBlockClass * self, SEL _cmd)
@@ -216,16 +221,12 @@ static NSUInteger _I_StackBlockClass_retainCount(struct StackBlockClass * self, 
     return self->reserved;
 }
 /*
-static NSString * _I_StackBlockClass_description(struct StackBlockClass * self, SEL _cmd)
-{
-    return [NSString stringWithFormat:@"Stack Block object=%p address=%p", self, self->invoke];
-}
+ static NSString * _I_StackBlockClass_description(struct StackBlockClass * self, SEL _cmd)
+ {
+ return [NSString stringWithFormat:@"Stack Block object=%p address=%p", self, self->invoke];
+ }
  */
 // @end
-
-#if 0 // GlobalBlockClass: Not much to do in here...
-{
-#endif
 
 #ifndef _REWRITER_typedef_GlobalBlockClass
 #define _REWRITER_typedef_GlobalBlockClass
@@ -248,7 +249,12 @@ struct GlobalBlockClass {
 
 // @implementation GlobalBlockClass
 
-static id _I_GlobalBlockClass_copy(struct GlobalBlockClass * self, SEL _cmd)
+static id _I_GlobalBlockClass_copyWithZone_(struct StackBlockClass * self, SEL _cmd, NSZone *aZone)
+{
+    return (id)self;
+}
+
+static id _I_GlobalBlockClass_copy(struct StackBlockClass * self, SEL _cmd)
 {
     return (id)self;
 }
@@ -277,9 +283,6 @@ static NSString * _I_GlobalBlockClass_description(struct GlobalBlockClass * self
 }
  */
 // @end
-#if 0
-}
-#endif
 
 #define __OFFSETOFIVAR__(TYPE, MEMBER) ((int) &((TYPE *)0)->MEMBER)
 
@@ -292,10 +295,11 @@ struct psy_objc_method {
 static struct {
 	struct _objc_method_list *next_method;
 	int method_count;
-	struct psy_objc_method method_list[5];
+	struct psy_objc_method method_list[6];
 } _OBJC_INSTANCE_METHODS_StackBlockClass __attribute__ ((used, section ("__OBJC, __inst_meth")))= {
 0, 6
-,{{(SEL)"copy", "@8@0:4", (void *)_I_StackBlockClass_copy}
+,{{(SEL)"copyWithZone:", "@12@0:4^{_NSZone=}8", (void *)_I_StackBlockClass_copyWithZone_}
+,{(SEL)"copy", "@8@0:4", (void *)_I_StackBlockClass_copy}
 ,{(SEL)"retain", "@8@0:4", (void *)_I_StackBlockClass_retain}
 ,{(SEL)"release", "Vv8@0:4", (void *)_I_StackBlockClass_release}
 ,{(SEL)"dealloc", "v8@0:4", (void *)_I_StackBlockClass_dealloc}
@@ -332,10 +336,11 @@ struct psy_objc_class _NSConcreteStackBlock __attribute__ ((used, section ("__OB
 static struct {
 	struct _objc_method_list *next_method;
 	int method_count;
-	struct psy_objc_method method_list[5];
+	struct psy_objc_method method_list[6];
 } _OBJC_INSTANCE_METHODS_GlobalBlockClass __attribute__ ((used, section ("__OBJC, __inst_meth")))= {
 0, 6
-,{{(SEL)"copy", "@8@0:4", (void *)_I_GlobalBlockClass_copy}
+,{{(SEL)"copyWithZone:", "@12@0:4^{_NSZone=}8", (void *)_I_GlobalBlockClass_copyWithZone_}
+,{(SEL)"copy", "@8@0:4", (void *)_I_GlobalBlockClass_copy}
 ,{(SEL)"retain", "@8@0:4", (void *)_I_GlobalBlockClass_retain}
 ,{(SEL)"release", "Vv8@0:4", (void *)_I_GlobalBlockClass_release}
 ,{(SEL)"dealloc", "v8@0:4", (void *)_I_GlobalBlockClass_dealloc}
@@ -390,14 +395,14 @@ void *__Block_copy(void *src)
     // If the block is Global, there's no need to copy it on the heap.
     if(self->isa == &_NSConcreteStackBlock && self->flags & BLOCK_HAS_DESCRIPTOR)
     {
-        if(self->descriptor->reserved == 0)
+        if(self->reserved == 0)
         {
             ret = malloc(self->descriptor->size);
             memcpy(ret, self, self->descriptor->size);
             if(self->flags & BLOCK_HAS_COPY_DISPOSE)
                 self->descriptor->copy_helper(ret, self);
         }
-        ret->descriptor->reserved++;
+        ret->reserved++;
     }
     return ret;
 }
@@ -409,10 +414,10 @@ void __Block_release(void *src)
     
     if(self->isa == &_NSConcreteStackBlock && // A Global block doesn't need to be released
        self->flags & BLOCK_HAS_DESCRIPTOR  && // Should always be true...
-       self->descriptor->reserved > 0)        // If false, then it's not allocated on the heap, we won't release auto memory !
+       self->reserved > 0)        // If false, then it's not allocated on the heap, we won't release auto memory !
     {
-        self->descriptor->reserved--;
-        if(self->descriptor->reserved == 0)
+        self->reserved--;
+        if(self->reserved == 0)
         {
             if(self->flags & BLOCK_HAS_COPY_DISPOSE)
                 self->descriptor->dispose_helper(self);
