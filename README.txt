@@ -1,6 +1,9 @@
 A Blocks Runtime implementation
 ===========================================
 
+By Remy Demarest, remy.demarest@gmail.com
+
+
 With the current Leopard-compatible version of Xcode it's not possible to compile this project.
 To be able to do so, you need to use the last version of LLVM-GCC that can be downloaded from http://llvm.org/ or the last version of Clang downloadable from http://clang.llvm.org/ .
 
